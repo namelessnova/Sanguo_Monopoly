@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>大富翁在线游戏</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:"Microsoft YaHei",sans-serif;}
+body{background:#efe8d5 url("./bj.png") center center / cover fixed no-repeat;padding:20px;}
+
+/* 开始界面 */
+.start-wrap{max-width:1100px;margin:30px auto;background:#f2e9d6;border-radius:24px;padding:40px;box-shadow: 0 8px 30px #00000022;}
+.start-wrap h1{text-align:center;font-size:48px;color:#222;margin-bottom:8px;}
+.start-wrap .sub-title{text-align:center;color:#555;font-size:18px;margin-bottom:32px;}
+.row{display:grid;grid-template-columns:minmax(0,680px);justify-content:center;}
+.panel{background:#e9dfc7;border-radius:16px;padding:24px;}
+.panel h3{margin-bottom:16px;color:#333;display:flex;align-items:center;gap:8px;}
+.player-count{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.player-count button{padding:14px;border:none;border-radius:10px;background:#d4c9b0;font-size:18px;cursor:pointer;}
+.player-count button.active{background:#3498db;color:white;}
+.player-item{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.color-block{width:42px;height:42px;border-radius:8px;}
+.player-item input{flex:1;padding:8px;border:1px solid #c9bfa6;border-radius:8px;font-size:16px;background:#f7f2e4;}
+.money-setting{display:flex;align-items:center;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid #c9bfa6;color:#333;font-size:16px;}
+.money-setting input{width:140px;padding:8px;border:1px solid #c9bfa6;border-radius:8px;font-size:16px;background:#f7f2e4;}
+.god-setting{margin-top:20px;padding-top:16px;border-top:1px solid #c9bfa6;}
+.god-setting h3{margin-bottom:12px;}
+.god-assignment-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;}
+.god-assignment-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;background:#f7f2e4;border:1px solid #c9bfa6;border-radius:8px;}
+.god-selects{display:flex;gap:6px;}
+.god-assignment-item label{font-size:14px;color:#333;}
+.god-select{padding:7px 4px;border:1px solid #c9bfa6;border-radius:6px;background:white;font-size:14px;min-width:96px;}
+.switch{margin-left:auto;width:46px;height:24px;border-radius:20px;background:#bbb;position:relative;cursor:pointer;}
+.switch.on{background:#3498db;}
+.switch::after{content:"";position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:3px;left:3px;transition:0.2s;}
+.switch.on::after{left:25px;}
+.start-btn{width:100%;margin-top:24px;padding:18px;border:none;border-radius:14px;background:#38a846;color:white;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+
+/* 游戏主页面布局：左侧玩家面板 + 棋盘 */
+.game-wrap{display:none;grid-template-columns:320px minmax(0,1fr);gap:20px;max-width:1800px;height:calc(100vh - 40px);min-height:0;margin:0 auto;}
+.left-sidebar{min-height:0;display:flex;flex-direction:column;}
+.left-sidebar #playerCards{min-height:0;flex:1;display:grid;grid-template-columns:1fr;align-content:start;gap:0;padding-right:0;}
+.left-sidebar .reset-btn{flex:none;}
+.player-card{background:#f2e9d6;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 12px #00000015;}
+.player-card.active{border:3px solid #3498db;}
+.player-card h4{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:18px;}
+.stat-row{display:flex;justify-content:space-between;margin:6px 0;font-size:15px;}
+.inventory-title{margin-top:12px;font-size:13px;color:#6b5748;font-weight:bold;}
+.player-cards-compact{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;}
+.player-cards-compact .player-card{border-radius:12px;padding:12px;margin-bottom:0;min-width:0;}
+.player-cards-compact .player-card h4{gap:6px;margin-bottom:8px;font-size:15px;overflow-wrap:anywhere;}
+.player-cards-compact .stat-row{margin:4px 0;font-size:12px;gap:4px;}
+.player-cards-compact .inventory-title{margin-top:8px;font-size:11px;}
+.inventory-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.inventory-item{max-width:100%;padding:4px 7px;border:0;border-radius:5px;background:#d9a441;color:#33250d;font-size:12px;cursor:pointer;overflow-wrap:anywhere;}
+.inventory-item.god{background:#6f5966;color:#fff;cursor:default;}
+.inventory-empty{font-size:12px;color:#8a7b68;}
+.property-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.property-item{max-width:100%;padding:4px 7px;border:0;border-radius:5px;color:#fff;font-size:12px;cursor:pointer;overflow-wrap:anywhere;}
+.property-level-1{background:#739b72;}
+.property-level-2{background:#3f7891;}
+.property-level-3{background:#76528d;}
+.reset-btn{width:100%;padding:14px;border:none;border-radius:12px;background:#6b5748;color:white;font-size:17px;cursor:pointer;margin-top:10px;}
+
+/* 棋盘容器 */
+.board{
+    width: min(100%, calc((100vh - 40px) * var(--board-width-cells) / var(--board-height-cells)));
+    aspect-ratio: var(--board-width-cells) / var(--board-height-cells);
+    max-height: calc(100vh - 40px);
+    margin: 0 auto;
+    position:relative;
+    display: grid;
+    grid-template-columns: 90px 1fr 90px;
+    grid-template-rows: 90px 1fr 90px;
+    background:transparent;
+}
+.board-top-row{
+    grid-row:1;
+    grid-column:1 / 4;
+    display:grid;
+    grid-template-columns:90px 1fr 90px;
+}
+.board-bottom-row{
+    grid-row:3;
+    grid-column:1 / 4;
+    display:grid;
+    grid-template-columns:90px 1fr 90px;
+}
+.board-top{
+    display:grid;
+    grid-template-columns:repeat(var(--inner-columns),1fr);
+}
+.board-bottom{
+    display:grid;
+    grid-template-columns:repeat(var(--inner-columns),1fr);
+}
+.board-right{
+    grid-row:2;
+    grid-column:3;
+    display:grid;
+    grid-template-rows:repeat(var(--inner-rows),1fr);
+}
+.board-left{
+    grid-row:2;
+    grid-column:1;
+    display:grid;
+    grid-template-rows:repeat(var(--inner-rows),1fr);
+}
+.board-center{
+    grid-row:2;
+    grid-column:2;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+}
+.dice-box{display:flex;gap:10px;align-items:center;}
+.dice{width:60px;height:60px;background:#fff;border-radius:10px;display:block;position:relative;padding:8px;border:1px solid #b8a994;box-shadow:0 4px 8px #00000022;}
+.dice.rolling{animation:diceRoll .65s ease-in-out;}
+.dice .pip{position:absolute;width:11px;height:11px;border-radius:50%;background:#302820;transform:translate(-50%,-50%);}
+.dice.result-box{background:#fff8e8;display:flex;align-items:center;justify-content:center;font-size:22px;}
+@keyframes diceRoll{
+    0%{transform:scale(.92) rotate(-5deg);}
+    45%{transform:scale(1.08) rotate(5deg);}
+    100%{transform:scale(1) rotate(0);}
+}
+.roll-btn{padding:10px 20px;border:none;border-radius:8px;background:#7a5c4a;color:white;cursor:pointer;font-size:16px;}
+.debug-controls{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;}
+.debug-controls input{width:68px;padding:5px;border:1px solid #b8a994;border-radius:6px;background:#f7f2e4;}
+.debug-controls button{padding:5px 8px;border:none;border-radius:6px;background:#8a6f9e;color:white;cursor:pointer;font-size:12px;}
+.debug-controls button:disabled{opacity:.5;cursor:not-allowed;}
+
+/* 棋盘格子 */
+.cell, .cell-corner{
+    border:1px solid #d4c9b0;
+    padding:4px;
+    font-size:12px;
+    text-align:center;
+    background:#f2e9d6;
+    position:relative;
+    box-sizing:border-box;
+    overflow:hidden;
+}
+.cell-corner{
+    background:#6f5966;
+    color:#fff;
+}
+.cell-corner small{white-space:pre-line;}
+.cell.type-card{background:#d9a441;}
+.cell.type-chance{background:#5b91c9;}
+.cell.type-god{background:#5bc9be;}
+.cell.group-1{background:#f4b6b6;}
+.cell.group-2{background:#f6c58b;}
+.cell.group-3{background:#f3df8a;}
+.cell.group-4{background:#c8e6a0;}
+.cell.group-5{background:#9ed9b6;}
+.cell.group-6{background:#91d5d9;}
+.cell.group-7{background:#9fc5ee;}
+.cell.group-8{background:#b9b0e8;}
+.cell.group-9{background:#d8a9dc;}
+.cell.group-10{background:#e8a6c0;}
+.cell.group-11{background:#c7b59a;}
+.cell.group-12{background:#b6c3a5;}
+.cell.group-13{background:#a8c6c9;}
+.cell.group-14{background:#c2b8d8;}
+/* 消除角落格子多余边框，拼接无缝 */
+.corner-tl{
+    border-right:none;
+    border-bottom:none;
+}
+.corner-tr{
+    border-left:none;
+    border-bottom:none;
+}
+.corner-br{
+    border-left:none;
+    border-top:none;
+}
+.corner-bl{
+    border-right:none;
+    border-top:none;
+}
+
+/* 玩家棋子圆点 */
+.player-dot{
+    width:22px;height:28px;
+    position:absolute;
+    background-color:var(--player-color);
+    -webkit-mask-repeat:no-repeat;
+    -webkit-mask-size:contain;
+    mask-repeat:no-repeat;
+    mask-size:contain;
+    z-index:3;
+}
+.player-dot.frame-half{
+    -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Ccircle cx='12' cy='5' r='4' fill='black'/%3E%3Cpath d='M7 11h10l2 9-5 8H9l-4-8z' fill='black'/%3E%3C/svg%3E");
+    mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Ccircle cx='12' cy='5' r='4' fill='black'/%3E%3Cpath d='M7 11h10l2 9-5 8H9l-4-8z' fill='black'/%3E%3C/svg%3E");
+}
+.player-dot.frame-full{
+    -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Ccircle cx='12' cy='5' r='4' fill='black'/%3E%3Cpath d='M7 11h10l2 14H5z' fill='black'/%3E%3C/svg%3E");
+    mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Ccircle cx='12' cy='5' r='4' fill='black'/%3E%3Cpath d='M7 11h10l2 14H5z' fill='black'/%3E%3C/svg%3E");
+}
+.player-dot.is-moving{
+    animation:playerMove 0.14s ease-out;
+}
+@keyframes playerMove{
+    0%{transform:translateY(-7px) scale(.8);opacity:.35;}
+    65%{transform:translateY(2px) scale(1.08);opacity:1;}
+    100%{transform:translateY(0) scale(1);opacity:1;}
+}
+.dot-1{top:2px;left:2px;}
+.dot-2{top:2px;right:2px;}
+.dot-3{bottom:2px;left:2px;}
+.dot-4{bottom:2px;right:2px;}
+.dot-5{top:2px;left:50%;transform:translateX(-50%);}
+.dot-6{bottom:2px;left:50%;transform:translateX(-50%);}
+
+/* 地产归属标记条（买地后底部色条） */
+.owner-mark{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:6px;
+    z-index:2;
+}
+.level-mark{
+    position:absolute;
+    right:2px;
+    bottom:7px;
+    padding:1px 3px;
+    border-radius:3px;
+    background:#333a;
+    color:#fff;
+    font-size:10px;
+    line-height:13px;
+    z-index:4;
+}
+
+/* 棋盘弹窗：所有弹窗都放在 board 内部，以棋盘为定位区域 */
+.modal{position:absolute;inset:0;width:100%;height:100%;background:#00000055;display:none;align-items:center;justify-content:center;z-index:99;}
+.modal-box{background:#f2e9d6;padding:30px;border-radius:16px;text-align:center;}
+.modal-box button{margin:10px;padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:16px;}
+.modal-box button:disabled{opacity:.5;cursor:not-allowed;}
+.draw-box{min-width:280px;}
+.draw-type{color:#8a6f9e;font-size:14px;margin-bottom:12px;}
+.draw-result{min-height:70px;padding:18px 12px;border:2px solid #d4c9b0;border-radius:10px;background:#fff8e8;}
+.draw-result.drawing{animation:drawPulse .45s ease-in-out infinite alternate;}
+.draw-name{font-size:24px;font-weight:bold;color:#6b5748;}
+.draw-desc{margin-top:8px;font-size:14px;color:#555;white-space:pre-line;}
+#drawModal{position:absolute;inset:0;width:100%;height:100%;background:#00000055;}
+.rent-box{min-width:280px;}
+.rent-box .draw-result{background:#f4c3c3;}
+.corner-box{min-width:280px;}
+.corner-box .draw-result{background:#e3d9c0;}
+.land-choice-box{min-width:320px;max-width:90%;}
+.land-choice-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:16px;}
+.land-choice-list button{margin:0;padding:10px 8px;background:#d9a441;}
+.player-choice-box{min-width:300px;max-width:90%;}
+.player-choice-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:16px;}
+.player-choice-list button{margin:0;padding:10px 8px;background:#5b91c9;color:white;}
+@keyframes drawPulse{from{transform:scale(.96);opacity:.55;}to{transform:scale(1.04);opacity:1;}}
+</style>
+</head>
+<body>
+<!-- 开始配置界面 -->
+<div class="start-wrap" id="startPage">
+    <h1>大富翁在线游戏</h1>
+    <div class="sub-title">经典桌游体验</div>
+    <div class="row">
+        <div class="panel">
+            <h3>👥 玩家</h3>
+            <div class="player-count">
+                <button class="active" data-num="2">2</button>
+                <button data-num="3">3</button>
+                <button data-num="4">4</button>
+                <button data-num="5">5</button>
+                <button data-num="6">6</button>
+            </div>
+            <div id="playerList"></div>
+            <div class="money-setting">
+                <label for="startingMoney">起始金钱</label>
+                <input id="startingMoney" type="number" min="10000" step="5000" value="15000">
+            </div>
+            <div class="god-setting">
+                <h3>神将分配</h3>
+                <div id="godAssignList" class="god-assignment-list"></div>
+            </div>
+            <button class="start-btn" id="startGameBtn">开始游戏 ▶</button>
+        </div>
+    </div>
+</div>
+
+<!-- 游戏主界面 -->
+<div class="game-wrap" id="gamePage">
+    <div class="left-sidebar">
+        <div id="playerCards"></div>
+        <button class="reset-btn" onclick="restartGame()">⟳ 重新开始游戏</button>
+    </div>
+    <div class="board" id="boardDom">
+        <!-- 顶部一行：左上角落 + 上边n格 + 右上角落 -->
+        <div class="board-top-row">
+            <div class="cell-corner corner-tl"></div>
+            <div class="board-top" id="boardTop"></div>
+            <div class="cell-corner corner-tr"></div>
+        </div>
+        <!-- 右侧一列：右边m格 -->
+        <div class="board-right" id="boardRight"></div>
+        <!-- 底部一行：左下角落 + 下边n格 + 右下角落 -->
+        <div class="board-bottom-row">
+            <div class="cell-corner corner-bl"></div>
+            <div class="board-bottom" id="boardBottom"></div>
+            <div class="cell-corner corner-br"></div>
+        </div>
+        <!-- 左侧一列：左边m格 -->
+        <div class="board-left" id="boardLeft"></div>
+        <!-- 棋盘中心 -->
+        <div class="board-center">
+            <div>回合：<span id="turnName">Player1</span></div>
+            <div class="dice-box">
+                <div class="dice" id="d1">•</div>
+                <div class="dice" id="d2">•</div>
+                <div class="dice" id="d3" style="display:none">•</div>
+                <div class="dice result-box" id="diceResult">0</div>
+            </div>
+            <button class="roll-btn" id="rollBtn" onclick="rollDice()">点击骰子掷骰</button>
+            <!-- 调试控件显示隐藏控制 -->
+            <div class="debug-controls">
+                <label for="debugSteps">调试步数</label>
+                <input id="debugSteps" type="number" min="1" max="100" step="1" placeholder="1-100">
+                <button id="debugRollBtn" onclick="debugRoll()">手动移动</button>
+            </div>
+        </div>
+        <div class="modal" id="drawModal">
+            <div class="modal-box draw-box">
+                <div class="draw-type" id="drawType">抽取中</div>
+                <div class="draw-result drawing" id="drawResult">
+                    <div class="draw-name" id="drawName">?</div>
+                    <div class="draw-desc" id="drawDesc">正在抽取...</div>
+                </div>
+                <button id="drawContinueBtn" onclick="completeDraw()" disabled>继续</button>
+            </div>
+        </div>
+        <div class="modal" id="rentModal">
+            <div class="modal-box rent-box">
+                <div class="draw-type">支付租金</div>
+                <div class="draw-result">
+                    <div class="draw-name" id="rentName">土地</div>
+                    <div class="draw-desc" id="rentDesc">正在结算...</div>
+                </div>
+                <button onclick="completeRent()">继续</button>
+            </div>
+        </div>
+        <div class="modal" id="cornerModal">
+            <div class="modal-box corner-box">
+                <div class="draw-type">角落事件</div>
+                <div class="draw-result">
+                    <div class="draw-name" id="cornerName">角落</div>
+                    <div class="draw-desc" id="cornerDesc">事件说明</div>
+                </div>
+                <button onclick="completeCorner()">继续</button>
+            </div>
+        </div>
+        <div class="modal" id="buyModal">
+            <div class="modal-box">
+                <h3 id="buyTitle">地块名称</h3>
+                <p id="buyDesc">价格：$100</p>
+                <button id="buyActionBtn" onclick="buyLand()">购买</button>
+                <button onclick="closeModal()">跳过</button>
+            </div>
+        </div>
+        <div class="modal" id="landChoiceModal">
+            <div class="modal-box land-choice-box">
+                <div class="draw-type" id="landChoiceType">选择土地</div>
+                <div class="draw-desc" id="landChoiceDesc">请选择一块土地</div>
+                <div class="land-choice-list" id="landChoiceList"></div>
+            </div>
+        </div>
+        <div class="modal" id="playerChoiceModal">
+            <div class="modal-box player-choice-box">
+                <div class="draw-type" id="playerChoiceType">选择玩家</div>
+                <div class="draw-desc" id="playerChoiceDesc">请选择一名玩家</div>
+                <div class="player-choice-list" id="playerChoiceList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<audio id="bgMusic" src="./bgm.mp3" loop autoplay preload="auto"></audio>
+<script>
+// rows 是横向格子数，columns 是竖向格子数。
+// 外圈总数 = 2 * rows + 2 * columns - 4。
+const boardConfig = {
+    totalCells: 66,
+    rows: 20,
+    columns: 15
+};
+
+// 四个角落单独配置，顺序固定为：左上、右上、右下、左下。
+const cornerCells = [
+    {name:"起点",type:"corner",price:0,desc:"经过获得\n2000金钱"},
+    {name:"监狱",type:"corner",price:0,desc:"经过无事发生"},
+    {name:"公园",type:"corner",price:0,desc:"停留1回合"},
+    {name:"被捕入狱",type:"corner",price:0,desc:"移至监狱并\n停留2回合"}
+];
+
+// 普通格子单独配置，idx 会根据棋盘配置自动生成，不需要手写。
+const cellList = [
+{idx:1,name:"桂阳",type:"land",price:2800,group:1},
+{idx:2,name:"零陵",type:"land",price:1300,group:1},
+{idx:3,name:"武陵",type:"land",price:1800,group:1},
+{idx:4,name:"天机",type:"chance",price:0,group:1},
+{idx:5,name:"锦囊",type:"card",price:0,group:1},
+{idx:6,name:"吴郡",type:"land",price:1500,group:2},
+{idx:7,name:"会稽",type:"land",price:1000,group:2},
+{idx:8,name:"豫章",type:"land",price:2400,group:2},
+{idx:9,name:"神明",type:"god",price:0,group:2},
+{idx:10,name:"天机",type:"chance",price:0,group:2},
+{idx:11,name:"下邳",type:"land",price:2300,group:3},
+{idx:12,name:"广陵",type:"land",price:1700,group:3},
+{idx:13,name:"彭城",type:"land",price:1100,group:3},
+{idx:14,name:"锦囊",type:"card",price:0,group:3},
+{idx:15,name:"神明",type:"god",price:0,group:3},
+{idx:16,name:"成都",type:"land",price:1000,group:4},
+{idx:17,name:"梓潼",type:"land",price:1200,group:4},
+{idx:18,name:"广汉",type:"land",price:2500,group:4},
+{idx:19,name:"西凉",type:"land",price:1100,group:5},
+{idx:20,name:"武威",type:"land",price:1200,group:5},
+{idx:21,name:"天水",type:"land",price:1300,group:5},
+{idx:22,name:"天机",type:"chance",price:0,group:5},
+{idx:23,name:"神明",type:"god",price:0,group:5},
+{idx:24,name:"邺城",type:"land",price:2900,group:6},
+{idx:25,name:"平原",type:"land",price:1900,group:6},
+{idx:26,name:"南皮",type:"land",price:1500,group:6},
+{idx:27,name:"锦囊",type:"card",price:0,group:6},
+{idx:28,name:"神明",type:"god",price:0,group:6},
+{idx:29,name:"襄阳",type:"land",price:2400,group:7},
+{idx:30,name:"樊城",type:"land",price:1000,group:7},
+{idx:31,name:"江夏",type:"land",price:2500,group:7},
+{idx:32,name:"苍梧",type:"land",price:1600,group:8},
+{idx:33,name:"九真",type:"land",price:2500,group:8},
+{idx:34,name:"象郡",type:"land",price:2000,group:8},
+{idx:35,name:"天机",type:"chance",price:0,group:8},
+{idx:36,name:"锦囊",type:"card",price:0,group:8},
+{idx:37,name:"庐江",type:"land",price:2600,group:9},
+{idx:38,name:"寿春",type:"land",price:2800,group:9},
+{idx:39,name:"合肥",type:"land",price:1600,group:9},
+{idx:40,name:"神明",type:"god",price:0,group:9},
+{idx:41,name:"天机",type:"chance",price:0,group:9},
+{idx:42,name:"洛阳",type:"land",price:1200,group:10},
+{idx:43,name:"河东",type:"land",price:2200,group:10},
+{idx:44,name:"河内",type:"land",price:1000,group:10},
+{idx:45,name:"锦囊",type:"card",price:0,group:10},
+{idx:46,name:"神明",type:"god",price:0,group:10},
+{idx:47,name:"北海",type:"land",price:2200,group:11},
+{idx:48,name:"东莱",type:"land",price:2800,group:11},
+{idx:49,name:"济南",type:"land",price:1200,group:11},
+{idx:50,name:"长安",type:"land",price:1200,group:12},
+{idx:51,name:"安定",type:"land",price:2200,group:12},
+{idx:52,name:"潼关",type:"land",price:1300,group:12},
+{idx:53,name:"天机",type:"chance",price:0,group:12},
+{idx:54,name:"神明",type:"god",price:0,group:12},
+{idx:55,name:"蓟城",type:"land",price:2100,group:13},
+{idx:56,name:"代郡",type:"land",price:1600,group:13},
+{idx:57,name:"北平",type:"land",price:2000,group:13},
+{idx:58,name:"锦囊",type:"card",price:0,group:13},
+{idx:59,name:"神明",type:"god",price:0,group:13},
+{idx:60,name:"长沙",type:"land",price:2200,group:14},
+{idx:61,name:"南郡",type:"land",price:2800,group:14},
+{idx:62,name:"柴桑",type:"land",price:3000,group:14},
+
+
+];
+
+const cardlist = [
+    {name:"天机",func:"fun1()",price:0,desc:"抽取一张天机卡并立即触发效果"},
+    {name:"神明",func:"fun2()",price:0,desc:"获得一张神明卡，可在任意回合使用"},
+    {name:"神驹",func:"fun27()",price:0,desc:"在扔色子前使用，指定移动步数"},
+    {name:"双色",func:"fun28()",price:0,desc:"在扔色子前使用，下次使用2个色子"},
+    {name:"三色",func:"fun29()",price:0,desc:"在扔色子前使用，下次使用3个色子"},
+    {name:"免租",func:"fun30()",price:0,desc:"在支付租金前使用，免除此次租金"},
+    {name:"双倍",func:"fun31()",price:0,desc:"在收取租金前使用，使租金翻倍"},
+    {name:"无效",func:"fun32()",price:0,desc:"在使用道具卡时使用，使道具卡无效"},
+    {name:"换地",func:"fun33()",price:0,desc:"在自己回合使用，指定交换两块土地"},
+    {name:"拆地",func:"fun34()",price:0,desc:"在自己回合使用，拆除一块土地"},
+    {name:"陷害",func:"fun35()",price:0,desc:"在自己回合使用，将一名玩家移至监狱并停留2回合"},
+    {name:"下毒",func:"fun36()",price:0,desc:"在自己回合使用，将一名玩家移至公园并停留1回合"},
+    {name:"送神",func:"fun37()",price:0,desc:"在自己回合使用，使一名玩家失去所有神明卡牌"},
+    {name:"偷卡",func:"fun38()",price:0,desc:"在自己回合使用，抽取一名玩家的一张道具卡牌到自己手里"},
+    {name:"收税",func:"fun39()",price:0,desc:"在自己回合使用，其余所有玩家支付1000金钱给自己"},
+    {name:"轮盘",func:"fun40()",price:0,desc:"扔2个色子，获得骰子点数之和乘1000的金钱"},
+    {name:"升级",func:"fun41()",price:0,desc:"将自己的一块土地升级到下一级，最多3级"},
+    {name:"偷钱",func:"fun42()",price:0,desc:"获得一名玩家10%的金钱"},
+
+];
+const chancelist = [
+    {name:"捡钱",func:"fun3()",price:0,desc:"触发天机事件，获得1000金钱"},
+    {name:"丢钱",func:"fun4()",price:0,desc:"触发天机事件，失去1000金钱"},
+    {name:"丢卡",func:"fun5()",price:0,desc:"触发天机事件，失去一张道具卡牌"},
+    {name:"丢神明",func:"fun6()",price:0,desc:"触发天机事件，失去所有神明卡牌"},
+    {name:"得土地",func:"fun7()",price:0,desc:"触发天机事件，获得一块免费土地"},
+    {name:"失土地",func:"fun8()",price:0,desc:"触发天机事件，失去一块土地"},
+    {name:"夺土地",func:"fun9()",price:0,desc:"触发天机事件，将一名玩家的土地变成自己的"},
+    {name:"破坏",func:"fun10()",price:0,desc:"触发天机事件，拆除玩家一块土地"},
+    {name:"被陷害",func:"fun11()",price:0,desc:"被陷害入狱，移动到监狱格子并停留2回合"},
+    {name:"生病",func:"fun12()",price:0,desc:"生病需要休息，移动到公园并停留1回合"},
+    {name:"回家",func:"fun13()",price:0,desc:"触发天机事件，移动指起点并获得2000金钱"},
+    {name:"神行",func:"fun14()",price:0,desc:"触发天机事件，向前移动3格"},
+    {name:"发钱",func:"fun15()",price:0,desc:"触发天机事件，金钱最少的玩家获得2000金钱"},
+    {name:"发地",func:"fun16()",price:0,desc:"触发天机事件，土地最少的玩家获得一块免费土地"},
+    {name:"土地税",func:"fun17()",price:0,desc:"每拥有一块土地，支付500金钱"},
+    {name:"财产税",func:"fun18()",price:0,desc:"失去自己金钱总额的20%"},
+];
+const godlist = [
+    {name:"福神",func:"",price:0,desc:"触发神明事件，收取租金翻倍"},
+    {name:"衰神",func:"",price:0,desc:"触发神明事件，收取租金减半"},
+    {name:"禄神",func:"",price:0,desc:"触发神明事件，支付租金减半"},
+    {name:"霉神",func:"",price:0,desc:"触发神明事件，支付租金翻倍"},
+    {name:"财神",func:"",price:0,desc:"触发神明事件，不用花费任何金钱"},
+    {name:"穷神",func:"",price:0,desc:"触发神明事件，不会收到任何金钱"},
+    {name:"土地",func:"",price:0,desc:"走到他人土地时，获得土地所有权"},
+    {name:"破坏",func:"",price:0,desc:"走到他人土地时，拆除土地所有权"},
+    {name:"雷公",func:"",price:0,desc:"每次扔两个色子"},
+    {name:"电母",func:"",price:0,desc:"每次扔三个色子"},
+];
+// 玩家数量，初始默认为2，可以被后面的玩家数量选择响应函数重新设置
+let playerCount = 2;
+let players = [];
+let currentPlayerIdx = 0;
+let gameStarted = false;
+let pendingBuyCell = null;
+let diceDisplayMode = "normal";
+let diceVisualState = "standing";
+let displayedDiceCount = 1;
+//colors是玩家的颜色选择，最大就支持6个玩家，groupColors是地产的颜色选择，最多支持14个地产组
+const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f","#9b59b6","#e67e22"];
+const groupColors = {
+    1:"#f4b6b6", 2:"#f6c58b", 3:"#f3df8a", 4:"#c8e6a0",
+    5:"#9ed9b6", 6:"#91d5d9", 7:"#9fc5ee", 8:"#b9b0e8",
+    9:"#d8a9dc", 10:"#e8a6c0", 11:"#c7b59a", 12:"#b6c3a5",
+    13:"#a8c6c9", 14:"#c2b8d8"
+};
+
+function prepareBoardConfig(){
+    const expectedCells = 2 * boardConfig.rows + 2 * boardConfig.columns - 4;
+    if(boardConfig.rows < 3 || boardConfig.columns < 3 || boardConfig.totalCells !== expectedCells){
+        throw new Error(`棋盘配置无效：总格数应为 ${expectedCells}，当前为 ${boardConfig.totalCells}`);
+    }
+    const topRightIndex = boardConfig.rows - 1;
+    const bottomRightIndex = topRightIndex + boardConfig.columns - 1;
+    const bottomLeftIndex = bottomRightIndex + boardConfig.rows - 1;
+    const cornerIndexes = new Set([0, topRightIndex, bottomRightIndex, bottomLeftIndex]);
+    if(cornerCells.length !== 4){
+        throw new Error("必须配置4个角落格子");
+    }
+
+    const normalCells = cellList.filter(cell=>cell.type !== "corner");
+    const normalCellCount = boardConfig.totalCells - cornerCells.length;
+    if(normalCells.length !== normalCellCount){
+        throw new Error(`普通格数量错误：当前 ${normalCells.length}，需要 ${normalCellCount}`);
+    }
+    //重排cell索引，四个角的序号先算出来（计算实际在下面renderboard函数），再去填其他cell索引
+    let normalIndex = 0;
+    cellList.splice(0, cellList.length);
+    for(let idx=0;idx<boardConfig.totalCells;idx++){
+        const cornerIndex = [0,topRightIndex,bottomRightIndex,bottomLeftIndex].indexOf(idx);
+        const source = cornerIndex >= 0 ? cornerCells[cornerIndex] : normalCells[normalIndex++];
+        cellList.push({...source,idx});
+    }
+}
+
+// 渲染四边格子
+function renderBoard(){
+    prepareBoardConfig();
+    const innerRows = boardConfig.columns - 2;
+    const innerColumns = boardConfig.rows - 2;
+    const topRightIndex = boardConfig.rows - 1;
+    const bottomRightIndex = topRightIndex + innerRows + 1;
+    const bottomLeftIndex = bottomRightIndex + innerColumns + 1;
+    const getCellText = cell => {
+        const priceText = cell.price > 0 ? `<br>${cell.price}` : "";
+        const descText = cell.type === "corner" && cell.desc ? `<br><small>${cell.desc}</small>` : "";
+        return `${cell.name}${priceText}${descText}`;
+    };
+    const getCellHtml = idx => {
+        const c = cellList[idx];
+        const groupClass = c.type === "land" && c.group ? ` group-${c.group}` : "";
+        const typeClass = c.type === "card" || c.type === "chance" || c.type === "god" ? ` type-${c.type}` : "";
+        return `<div class="cell${groupClass}${typeClass}" data-idx="${c.idx}">${getCellText(c)}</div>`;
+    };
+
+    document.querySelector(".corner-tl").dataset.idx = 0;
+    document.querySelector(".corner-tl").innerHTML = getCellText(cellList[0]);
+    document.querySelector(".corner-tr").dataset.idx = topRightIndex;
+    document.querySelector(".corner-tr").innerHTML = getCellText(cellList[topRightIndex]);
+    document.querySelector(".corner-br").dataset.idx = bottomRightIndex;
+    document.querySelector(".corner-br").innerHTML = getCellText(cellList[bottomRightIndex]);
+    document.querySelector(".corner-bl").dataset.idx = bottomLeftIndex;
+    document.querySelector(".corner-bl").innerHTML = getCellText(cellList[bottomLeftIndex]);
+
+    document.querySelector(".corner-tl").dataset.corner = "top-left";
+    document.querySelector(".corner-tr").dataset.corner = "top-right";
+    document.querySelector(".corner-br").dataset.corner = "bottom-right";
+    document.querySelector(".corner-bl").dataset.corner = "bottom-left";
+
+    const board = document.getElementById("boardDom");
+    board.style.setProperty("--board-width-cells", boardConfig.rows);
+    board.style.setProperty("--board-height-cells", boardConfig.columns);
+    board.style.setProperty("--inner-rows", innerRows);
+    board.style.setProperty("--inner-columns", innerColumns);
+
+    // 上边：从左上向右上
+    let topHtml = "";
+    for(let i=1;i<=innerColumns;i++){
+        topHtml += getCellHtml(i);
+    }
+    document.getElementById("boardTop").innerHTML = topHtml;
+
+    // 右边：从右上向右下
+    let rightHtml = "";
+    for(let i=topRightIndex+1;i<bottomRightIndex;i++){
+        rightHtml += getCellHtml(i);
+    }
+    document.getElementById("boardRight").innerHTML = rightHtml;
+
+    // 下边：从右下向左下，页面从左到右所以倒序插入
+    let bottomHtml = "";
+    for(let i=bottomLeftIndex-1;i>bottomRightIndex;i--){
+        bottomHtml += getCellHtml(i);
+    }
+    document.getElementById("boardBottom").innerHTML = bottomHtml;
+
+    // 左边：从左下向左上，页面从上到下所以倒序插入
+    let leftHtml = "";
+    for(let i=boardConfig.totalCells-1;i>bottomLeftIndex;i--){
+        leftHtml += getCellHtml(i);
+    }
+    document.getElementById("boardLeft").innerHTML = leftHtml;
+    updatePlayerMarker();
+    updateOwnerMark();
+}
+
+// 更新玩家棋子圆点
+function updatePlayerMarker(movingPlayerIdx=null, frame="full"){
+    document.querySelectorAll(".player-dot").forEach(d=>d.remove());
+    players.forEach((p,idx)=>{
+        const cellDom = document.querySelector(`[data-idx="${p.pos}"]`);
+        if(!cellDom) return;
+        const dot = document.createElement("div");
+        dot.className = `player-dot dot-${idx+1} frame-${idx === movingPlayerIdx ? frame : "full"}`;
+        dot.style.setProperty("--player-color", p.color);
+        if(idx === movingPlayerIdx) dot.classList.add("is-moving");
+        cellDom.appendChild(dot);
+    })
+}
+
+// 更新地块底部所有者标记条
+function updateOwnerMark(){
+    document.querySelectorAll(".owner-mark").forEach(d=>d.remove());
+    document.querySelectorAll(".level-mark").forEach(d=>d.remove());
+    players.forEach(p=>{
+        p.lands.forEach(land=>{
+            const cellDom = document.querySelector(`[data-idx="${land.idx}"]`);
+            if(!cellDom) return;
+            const mark = document.createElement("div");
+            mark.className = "owner-mark";
+            mark.style.background = p.color;
+            mark.style.height = `${4 + (land.level || 1) * 3}px`;
+            cellDom.appendChild(mark);
+            const levelMark = document.createElement("div");
+            levelMark.className = "level-mark";
+            levelMark.innerText = `Lv${land.level || 1}`;
+            cellDom.appendChild(levelMark);
+        })
+    })
+}
+
+// 初始化玩家配置列表
+function renderPlayerSetting(){
+    let html = "";
+    //6号以上玩家默认AI;因为最大玩家就是6，所以就是默认都不勾选AI
+    for(let i=0;i<playerCount;i++){
+        html += `
+        <div class="player-item">
+            <div class="color-block" style="background:${colors[i]}"></div>
+            <input value="Player ${i+1}" class="player-name">
+            <div class="switch ${i>=6?'on':''}" data-ai="${i}"></div>
+        </div>`;
+    }
+    document.getElementById("playerList").innerHTML = html;
+    document.querySelectorAll(".switch").forEach(el=>{
+        el.onclick = function(){this.classList.toggle("on");}
+    })
+    renderGodAssignment();
+}
+
+function renderGodAssignment(){
+    const list = document.getElementById("godAssignList");
+    const options = ["<option value=\"无神\">无神</option>"]
+        .concat(godlist.map(god => `<option value="${god.name}">${god.name}</option>`))
+        .join("");
+
+    let html = "";
+    for(let i=0;i<playerCount;i++){
+        html += `
+        <div class="god-assignment-item">
+            <label>Player ${i+1}</label>
+            <div class="god-selects">
+                <select class="god-select" data-player-index="${i}" data-god-slot="1">
+                    ${options}
+                </select>
+                <select class="god-select" data-player-index="${i}" data-god-slot="2">
+                    ${options}
+                </select>
+            </div>
+        </div>`;
+    }
+    list.innerHTML = html;
+}
+
+// 选择玩家数量
+document.querySelectorAll(".player-count button").forEach(btn=>{
+    btn.onclick = function(){
+        document.querySelectorAll(".player-count button").forEach(b=>b.classList.remove("active"));
+        this.classList.add("active");
+        playerCount = Number(this.dataset.num);
+        renderPlayerSetting();
+    }
+})
+// 初始化玩家配置，默认2人，1人AI，写在这里加载页面的时候就会执行一次
+renderPlayerSetting();
+
+// 开始游戏
+document.getElementById("startGameBtn").onclick = function(){
+    const nameInputs = document.querySelectorAll(".player-name");
+    const aiSwitchs = document.querySelectorAll(".switch");
+    const godSelects = document.querySelectorAll(".god-select");
+    const startingMoney = Number(document.getElementById("startingMoney").value);
+    if(!Number.isFinite(startingMoney) || startingMoney < 0){
+        document.getElementById("startingMoney").focus();
+        return;
+    }
+    players = [];
+    for(let i=0;i<playerCount;i++){
+        const selectedGods = Array.from(godSelects)
+            .filter(select=>Number(select.dataset.playerIndex) === i)
+            .map(select=>select.value)
+            .filter(godName=>godName && godName !== "无神");
+        const playerGods = selectedGods.map(godName=>({name:godName, turns:9999}));
+
+        players.push({
+            name: nameInputs[i].value,
+            color:colors[i],
+            money:startingMoney,
+            pos:0,
+            isAI: aiSwitchs[i].classList.contains("on"),
+            lands:[],
+            cards:[],
+            gods:playerGods,
+            skipTurns:0
+        })
+
+        if(playerGods.length){
+            updateGodRentMultiplier(players[players.length - 1]);
+        }
+    }
+    document.getElementById("startPage").style.display="none";
+    document.getElementById("gamePage").style.display="grid";
+    gameStarted=true;
+    currentPlayerIdx=0;
+    renderBoard();
+    renderPlayerCards();
+}
+
+// 渲染左侧玩家卡片
+function renderPlayerCards(movingPlayerIdx=null, frame="full"){
+    let html = "";
+    players.forEach((p,i)=>{
+        html += `
+        <div class="player-card ${i===currentPlayerIdx?'active':''}">
+            <h4 style="color:${p.color}">${p.name} ${p.isAI?"🤖":""}</h4>
+            <div class="stat-row"><span>现金</span><span>${p.money}</span></div>
+            <div class="stat-row"><span>净资产</span><span>${p.money}</span></div>
+            <div class="stat-row"><span>位置</span><span>${cellList[p.pos].name}</span></div>
+            <div class="stat-row"><span>房产数量</span><span>${p.lands.length}</span></div>
+            <div class="inventory-title">土地（点击出售）</div>
+            <div class="property-list">${p.lands.length ? p.lands.map((land,index)=>`<button class="property-item property-level-${land.level || 1}" onclick="sellLand(${i},${index})" title="出售可获得 ${land.price * (land.level || 1)} 金钱">${land.name} ${land.price * (land.level || 1)}</button>`).join("") : '<span class="inventory-empty">暂无</span>'}</div>
+            <div class="inventory-title">道具</div>
+            <div class="inventory-list">${p.cards.length ? p.cards.map((card,index)=>`<button class="inventory-item" onclick="useCard(${i},${index})" title="${card.desc || "点击使用"}">${card.name}</button>`).join("") : '<span class="inventory-empty">暂无</span>'}</div>
+            <div class="inventory-title">神明</div>
+            <div class="inventory-list">${p.gods.length ? p.gods.map(god=>`<span class="inventory-item god" title="${god.desc || "持续3回合"}">${god.name}(${god.turns})</span>`).join("") : '<span class="inventory-empty">暂无</span>'}</div>
+        </div>`;
+    })
+    const playerCards = document.getElementById("playerCards");
+    playerCards.classList.toggle("player-cards-compact", players.length >= 3);
+    playerCards.innerHTML = html;
+    document.getElementById("turnName").innerText = players[currentPlayerIdx].name;
+    renderDiceDisplay(players[currentPlayerIdx], diceDisplayMode === "debug");
+    updatePlayerMarker(movingPlayerIdx, frame);
+}
+
+// 调试用：输入步数后直接移动，删除此函数和对应控件即可移除调试功能。
+function debugRoll(){
+    const input = document.getElementById("debugSteps");
+    const step = Number(input.value);
+    if(!Number.isInteger(step) || step < 1 || step > 100){
+        input.focus();
+        return;
+    }
+    rollDice(step);
+}
+
+// 掷骰子；传入步数时用于调试，不传参数时使用随机骰子。
+function rollDice(stepOverride=null){
+    const btn = document.getElementById("rollBtn");
+    btn.disabled=true;
+    document.getElementById("debugRollBtn").disabled=true;
+    const isDebugMove = stepOverride !== null;
+    const p = players[currentPlayerIdx];
+    checkGodEffects(p);
+    const diceCount = isDebugMove ? 1 : (p.forcedDiceCount || getDiceCount(p));
+    if(!isDebugMove) p.forcedDiceCount = null;
+    displayedDiceCount = diceCount;
+    diceDisplayMode = isDebugMove ? "debug" : "normal";
+    const diceValues = isDebugMove
+        ? [stepOverride]
+        : Array.from({length:diceCount}, ()=>Math.floor(Math.random()*6)+1);
+    renderDiceDisplay(p, isDebugMove);
+    const step = isDebugMove ? stepOverride : diceValues.reduce((total, value)=>total + value, 0);
+    let moved = 0;
+    let passedStart = false;
+    //先定义一个函数，递归调用自己来实现逐步移动的动画效果；之所以定义在rolldice里面，是为了调用其内部成员
+    const moveOneStep = ()=>{
+        renderPlayerCards(currentPlayerIdx, "half");
+        setTimeout(()=>{
+            p.pos = (p.pos + 1) % boardConfig.totalCells;
+            if(p.pos === 0){
+                if(!hasGod(p, "穷神")){
+                    p.money += 2000;
+                }
+                passedStart = true;
+            }
+            moved++;
+            renderPlayerCards(currentPlayerIdx, "full");
+            if(moved === step){
+                finishMove(p, passedStart);
+            } else {
+                setTimeout(moveOneStep, 140);
+            }
+        },140);
+    };
+    if(isDebugMove){
+        document.getElementById("d1").innerText = stepOverride;
+        document.getElementById("d2").innerText = "调试";
+    } else {
+        diceVisualState = "rolled";
+        const diceElements = [
+            document.getElementById("d1"),
+            document.getElementById("d2"),
+            document.getElementById("d3")
+        ];
+        const resultElement = document.getElementById("diceResult");
+        resultElement.innerText = "";
+        diceValues.forEach((value, index)=>diceElements[index].classList.add("rolling"));
+        animateDiceRoll(diceElements, diceValues, ()=>{
+            resultElement.innerText = step;
+            moveOneStep();
+        });
+    }
+    if(isDebugMove) moveOneStep();
+}
+
+function getFunctionName(func){
+    return typeof func === "string" ? func.trim().replace(/\(.*\)$/, "") : "";
+}
+
+function executeEffect(effect, player){
+    const functionName = getFunctionName(effect);
+    const effectFunction = functionName && window[functionName];
+    if(typeof effectFunction === "function"){
+        return effectFunction(player);
+    }
+    return "";
+}
+
+function drawRandom(list){
+    return list[Math.floor(Math.random() * list.length)];
+}
+
+function useCard(playerIndex, cardIndex){
+    const player = players[playerIndex];
+    if(!player || playerIndex !== currentPlayerIdx || !player.cards[cardIndex]) return;
+    const card = player.cards.splice(cardIndex, 1)[0];
+    const functionName = getFunctionName(card.func);
+    if(player.nullifyNextCard){
+        player.nullifyNextCard = false;
+        finishItemCard(player, "无效", `道具卡「${card.name}」已被无效`);
+        return;
+    }
+    if(functionName === "fun1"){
+        fun1(player, ()=>renderPlayerCards());
+    } else if(functionName === "fun2"){
+        fun2(player, ()=>renderPlayerCards());
+    } else if(Number(functionName.slice(3)) >= 27 && Number(functionName.slice(3)) <= 42){
+        useNewItemCard(player, functionName);
+    } else {
+        const effectMessage = executeEffect(card.func, player);
+        if(effectMessage) showCornerEvent(card.name, effectMessage, ()=>renderPlayerCards());
+        renderPlayerCards();
+    }
+}
+
+function finishItemCard(player, name, message){
+    renderPlayerCards();
+    showCornerEvent(name, message, ()=>renderPlayerCards());
+}
+
+function showItemPlayerChoice(player, title, candidates, callback){
+    if(!candidates.length){
+        finishItemCard(player, title, "没有符合条件的玩家");
+        return;
+    }
+    const modal = document.getElementById("playerChoiceModal");
+    const list = document.getElementById("playerChoiceList");
+    document.getElementById("playerChoiceType").innerText = title;
+    document.getElementById("playerChoiceDesc").innerText = "请选择一名玩家";
+    list.innerHTML = candidates.map((target, index)=>
+        `<button data-player-index="${index}" style="background:${target.color}">${target.name}</button>`
+    ).join("");
+    modal.style.display = "flex";
+    const choose = target=>{
+        modal.style.display = "none";
+        callback(target);
+    };
+    list.querySelectorAll("button").forEach((button, index)=>button.onclick = ()=>choose(candidates[index]));
+    if(player.isAI) setTimeout(()=>choose(pickRandom(candidates)), 900);
+}
+
+function showItemLandChoice(player, title, lands, callback){
+    if(!lands.length){
+        finishItemCard(player, title, "没有符合条件的土地");
+        return;
+    }
+    const modal = document.getElementById("landChoiceModal");
+    const list = document.getElementById("landChoiceList");
+    document.getElementById("landChoiceType").innerText = title;
+    document.getElementById("landChoiceDesc").innerText = "请选择一块土地";
+    list.innerHTML = lands.map((land, index)=>
+        `<button data-land-index="${index}">${land.name}<br><small>${land.owner ? land.owner.name : "无主"}</small></button>`
+    ).join("");
+    modal.style.display = "flex";
+    const choose = land=>{
+        modal.style.display = "none";
+        callback(land);
+    };
+    list.querySelectorAll("button").forEach((button, index)=>button.onclick = ()=>choose(lands[index]));
+    if(player.isAI) setTimeout(()=>choose(pickRandom(lands)), 900);
+}
+
+function useNewItemCard(player, functionName){
+    if(functionName === "fun27"){
+        const steps = Number(prompt("请输入移动步数", "6"));
+        if(Number.isInteger(steps) && steps > 0 && steps <= 100) rollDice(steps);
+        else finishItemCard(player, "神驹", "输入的移动步数无效");
+        return;
+    }
+    if(functionName === "fun28" || functionName === "fun29"){
+        player.forcedDiceCount = functionName === "fun28" ? 2 : 3;
+        finishItemCard(player, functionName === "fun28" ? "双色" : "三色", `下次掷骰使用 ${player.forcedDiceCount} 个骰子`);
+        return;
+    }
+    if(functionName === "fun30"){
+        player.nextRentFree = true;
+        finishItemCard(player, "免租", "下次支付租金时免除租金");
+        return;
+    }
+    if(functionName === "fun31"){
+        player.nextRentDouble = true;
+        finishItemCard(player, "双倍", "下次收取租金时租金翻倍");
+        return;
+    }
+    if(functionName === "fun32"){
+        player.nullifyNextCard = true;
+        finishItemCard(player, "无效", "下一张使用的道具卡将失效");
+        return;
+    }
+    if(functionName === "fun33"){
+        showItemLandChoice(player, "选择第一块要交换的土地", cellList.filter(cell=>cell.type === "land" && cell.owner), firstLand=>{
+            const remaining = cellList.filter(cell=>cell.type === "land" && cell.owner && cell !== firstLand);
+            showItemLandChoice(player, "选择第二块要交换的土地", remaining, secondLand=>{
+                const firstOwner = firstLand.owner;
+                const secondOwner = secondLand.owner;
+                firstOwner.lands.splice(firstOwner.lands.indexOf(firstLand), 1);
+                secondOwner.lands.splice(secondOwner.lands.indexOf(secondLand), 1);
+                firstLand.owner = secondOwner;
+                secondLand.owner = firstOwner;
+                firstOwner.lands.push(secondLand);
+                secondOwner.lands.push(firstLand);
+                updateOwnerMark();
+                finishItemCard(player, "换地", `已交换「${firstLand.name}」和「${secondLand.name}」的所有权`);
+            });
+        });
+        return;
+    }
+    if(functionName === "fun34"){
+        showItemLandChoice(player, "选择要拆除的土地", cellList.filter(cell=>cell.type === "land" && cell.owner), land=>{
+            const owner = land.owner;
+            removeLandFromOwner(land);
+            land.owner = null;
+            land.level = 0;
+            updateOwnerMark();
+            finishItemCard(player, "拆地", `${owner.name} 的土地「${land.name}」已变为无主土地`);
+        });
+        return;
+    }
+    if(functionName === "fun35" || functionName === "fun36"){
+        const title = functionName === "fun35" ? "选择要陷害的玩家" : "选择要下毒的玩家";
+        showItemPlayerChoice(player, title, getOtherPlayers(player), target=>{
+            target.pos = functionName === "fun35" ? boardConfig.rows - 1 : boardConfig.rows - 1 + boardConfig.columns - 1;
+            target.skipTurns = functionName === "fun35" ? 2 : 1;
+            updatePlayerMarker();
+            finishItemCard(player, functionName === "fun35" ? "陷害" : "下毒", `${target.name} 已移动并停留相应回合`);
+        });
+        return;
+    }
+    if(functionName === "fun37"){
+        showItemPlayerChoice(player, "选择要送走神明的玩家", getOtherPlayers(player), target=>{
+            const count = target.gods.length;
+            target.gods = [];
+            updateGodRentMultiplier(target);
+            finishItemCard(player, "送神", `${target.name} 失去了 ${count} 个神明`);
+        });
+        return;
+    }
+    if(functionName === "fun38"){
+        showItemPlayerChoice(player, "选择要偷取道具的玩家", getOtherPlayers(player).filter(target=>target.cards.length), target=>{
+            const stolenCard = pickRandom(target.cards);
+            target.cards.splice(target.cards.indexOf(stolenCard), 1);
+            player.cards.push(stolenCard);
+            finishItemCard(player, "偷卡", `${player.name} 从 ${target.name} 手中偷到了「${stolenCard.name}」`);
+        });
+        return;
+    }
+    if(functionName === "fun39"){
+        const others = getOtherPlayers(player);
+        others.forEach(target=>loseMoney(target, 1000));
+        gainMoney(player, others.filter(target=>!hasGod(target, "财神")).length * 1000);
+        finishItemCard(player, "收税", `${player.name} 向其他玩家收取了税金`);
+        return;
+    }
+    if(functionName === "fun40"){
+        const values = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
+        const amount = (values[0] + values[1]) * 1000;
+        gainMoney(player, amount);
+        finishItemCard(player, "轮盘", `${player.name} 掷出 ${values[0]} 和 ${values[1]}，获得 ${amount} 金钱`);
+        return;
+    }
+    if(functionName === "fun41"){
+        showItemLandChoice(player, "选择要升级的自己的土地", getOwnedLands(player).filter(land=>(land.level || 1) < 3), land=>{
+            land.level = (land.level || 1) + 1;
+            updateOwnerMark();
+            finishItemCard(player, "升级", `${land.name} 已升级到 Lv${land.level}`);
+        });
+        return;
+    }
+    if(functionName === "fun42"){
+        showItemPlayerChoice(player, "选择要偷钱的玩家", getOtherPlayers(player), target=>{
+            const amount = Math.floor(target.money * 0.1);
+            const lost = loseMoney(target, amount);
+            gainMoney(player, lost);
+            finishItemCard(player, "偷钱", `${player.name} 从 ${target.name} 处获得 ${lost} 金钱`);
+        });
+    }
+}
+
+function checkGodEffects(player){
+    if(!player) return;
+    player.gods.forEach(god=>{
+        executeEffect(god.condition || god.func, player);
+    });
+    updateGodRentMultiplier(player);
+}
+
+function tickGods(player){
+    if(!player) return;
+    player.gods.forEach(god=>god.turns--);
+    player.gods = player.gods.filter(god=>god.turns > 0);
+    updateGodRentMultiplier(player);
+}
+
+function hasGod(player, godName){
+    return !!player && Array.isArray(player.gods) && player.gods.some(god=>god.name === godName);
+}
+
+function updateGodRentMultiplier(player){
+    if(!player){ return 1; }
+    const hasFortuneGod = hasGod(player, "福神");
+    const hasMisfortuneGod = hasGod(player, "衰神");
+    const hasPoorGod = hasGod(player, "穷神");
+    player.rentMultiplier = hasPoorGod ? 0 : hasMisfortuneGod ? 0.5 : hasFortuneGod ? 2 : 1;
+    return player.rentMultiplier;
+}
+
+function getGodRentMultiplier(player){
+    if(!player) return 1;
+    if(!Array.isArray(player.gods)) return 1;
+    return player.rentMultiplier ?? 1;
+}
+
+function getPayRentMultiplier(player){
+    if(!player) return 1;
+    if(hasGod(player, "财神")) return 0;
+    if(hasGod(player, "霉神")) return 2;
+    if(hasGod(player, "禄神")) return 0.5;
+    return 1;
+}
+
+let drawContinue = null;
+
+function showDrawResult(player, type, item, continueAction){
+    drawContinue = continueAction;
+    const typeNames = {card:"获得锦囊", god:"获得神明", chance:"天机事件"};
+    const result = document.getElementById("drawResult");
+    const continueButton = document.getElementById("drawContinueBtn");
+    document.getElementById("drawType").innerText = typeNames[type];
+    document.getElementById("drawName").innerText = "?";
+    document.getElementById("drawDesc").innerText = "正在抽取...";
+    result.classList.add("drawing");
+    continueButton.disabled = true;
+    document.getElementById("drawModal").style.display = "flex";
+
+    setTimeout(()=>{
+        document.getElementById("drawName").innerText = item.name;
+        document.getElementById("drawDesc").innerText = item.desc || "效果已触发";
+        result.classList.remove("drawing");
+        continueButton.disabled = false;
+        if(player.isAI) setTimeout(completeDraw, 900);
+    }, 900);
+}
+
+function completeDraw(){
+    const action = drawContinue;
+    drawContinue = null;
+    document.getElementById("drawModal").style.display = "none";
+    if(action) action();
+}
+
+function drawChanceCard(player, continueAction){
+    const chance = {...drawRandom(chancelist)};
+    const functionName = getFunctionName(chance.func);
+    if(functionName === "fun9" || functionName === "fun10" || functionName === "fun16"){
+        renderPlayerCards();
+        const nextAction = functionName === "fun9" || functionName === "fun10"
+            ? ()=>showPlayerChoice(player, functionName, continueAction)
+            : ()=>showLandChoice(player, functionName, continueAction);
+        showDrawResult(player, "chance", chance, nextAction);
+        return;
+    }
+    const effectMessage = executeEffect(chance.func, player);
+    if(effectMessage) chance.desc = effectMessage;
+    updateOwnerMark();
+    renderPlayerCards();
+    showDrawResult(player, "chance", chance, continueAction);
+}
+
+function gainMoney(player, amount){
+    if(!player) return 0;
+    if(hasGod(player, "穷神")) return 0;
+    player.money += amount;
+    return amount;
+}
+
+function loseMoney(player, amount){
+    if(!player) return 0;
+    if(hasGod(player, "财神")) return 0;
+    player.money = Math.max(0, player.money - amount);
+    return amount;
+}
+
+function drawCard(player, continueAction){
+    const card = {...drawRandom(cardlist)};
+    player.cards.push(card);
+    renderPlayerCards();
+    showDrawResult(player, "card", card, continueAction);
+}
+
+function drawGodCard(player, continueAction){
+    const god = {...drawRandom(godlist),turns:3};
+    showDrawResult(player, "god", god, ()=>{
+        const existingGod = player.gods.find(playerGod=>playerGod.name === god.name);
+        if(existingGod){
+            existingGod.turns += 3;
+        } else {
+            player.gods.push(god);
+        }
+        updateGodRentMultiplier(player);
+        renderPlayerCards();
+        continueAction();
+    });
+}
+
+function resolveLanding(player, continueAction){
+    const cell = cellList[player.pos];
+    if(cell.type === "card"){
+        drawCard(player, continueAction);
+    } else if(cell.type === "god"){
+        drawGodCard(player, continueAction);
+    } else if(cell.type === "chance"){
+        drawChanceCard(player, continueAction);
+    } else {
+        continueAction();
+    }
+}
+
+// 可在 cardlist/chancelist/godlist 中通过 func 配置替换这些效果。
+function fun1(player, continueAction=()=>{}){ drawChanceCard(player, continueAction); }
+function fun2(player, continueAction=()=>{}){ drawGodCard(player, continueAction); }
+function fun3(player){
+    const amount = gainMoney(player, 1000);
+    return amount ? `${player.name} 获得 1000 金钱` : `${player.name} 触发穷神，无法获得金钱`;
+}
+function fun4(player){
+    const amount = loseMoney(player, 1000);
+    return amount ? `${player.name} 失去 1000 金钱` : `${player.name} 触发财神，免除本次损失`;
+}
+function fun17(player){
+    const tax = player.lands.length * 500;
+    if(!tax) return `${player.name} 没有土地，无需缴纳土地税`;
+    const amount = loseMoney(player, tax);
+    return amount ? `${player.name} 缴纳土地税 ${tax} 金钱` : `${player.name} 触发财神，免除土地税`;
+}
+function fun18(player){
+    const tax = Math.floor(player.money * 0.2);
+    if(!tax) return `${player.name} 当前没有需要缴纳的财产税`;
+    const amount = loseMoney(player, tax);
+    return amount ? `${player.name} 缴纳财产税 ${tax} 金钱` : `${player.name} 触发财神，免除财产税`;
+}
+
+function pickRandom(items){
+    return items.length ? items[Math.floor(Math.random() * items.length)] : null;
+}
+
+function getUnownedLands(){
+    return cellList.filter(cell=>cell.type === "land" && !cell.owner);
+}
+
+function getOwnedLands(player){
+    return player && Array.isArray(player.lands) ? player.lands : [];
+}
+
+function getOtherPlayers(player){
+    return players.filter(otherPlayer=>otherPlayer !== player);
+}
+
+function fun5(player){
+    const card = pickRandom(player.cards);
+    if(!card) return `${player.name} 没有道具卡，什么也没有失去`;
+    player.cards.splice(player.cards.indexOf(card), 1);
+    return `${player.name} 失去了道具卡「${card.name}」`;
+}
+
+function fun6(player){
+    const godCount = player.gods.length;
+    player.gods = [];
+    updateGodRentMultiplier(player);
+    return godCount ? `${player.name} 失去了全部 ${godCount} 个神明` : `${player.name} 没有神明，什么也没有失去`;
+}
+
+function fun7(player){
+    const land = pickRandom(getUnownedLands());
+    if(!land) return "没有无主土地，获得土地失败";
+    land.owner = player;
+    land.level = 1;
+    player.lands.push(land);
+    return `${player.name} 免费获得了土地「${land.name}」`;
+}
+
+function fun8(player){
+    const land = pickRandom(getOwnedLands(player));
+    if(!land) return `${player.name} 没有土地，什么也没有失去`;
+    removeLandFromOwner(land);
+    land.owner = null;
+    land.level = 0;
+    return `${player.name} 失去了土地「${land.name}」`;
+}
+
+function fun9(player, land=null){
+    if(!land || !land.owner || land.owner === player) return "没有选择可夺取的土地";
+    const target = land.owner;
+    removeLandFromOwner(land);
+    land.owner = player;
+    land.level = land.level || 1;
+    player.lands.push(land);
+    return `${player.name} 从 ${target.name} 手中夺得了土地「${land.name}」`;
+}
+
+function fun10(player, land=null){
+    if(!land || !land.owner || land.owner === player) return "没有选择可破坏的土地";
+    const target = land.owner;
+    removeLandFromOwner(land);
+    land.owner = null;
+    land.level = 0;
+    return `${player.name} 破坏了 ${target.name} 的土地「${land.name}」`;
+}
+
+function getOpponentLands(player){
+    return getOtherPlayers(player).flatMap(otherPlayer=>getOwnedLands(otherPlayer));
+}
+
+function showPlayerChoice(player, functionName, continueAction){
+    const targets = getOtherPlayers(player).filter(target=>getOwnedLands(target).length);
+    if(!targets.length){
+        const cardName = functionName === "fun9" ? "夺土地" : "破坏";
+        const message = functionName === "fun9" ? "没有其他玩家拥有土地，夺地失败" : "没有其他玩家拥有土地，破坏失败";
+        showDrawResult(player, "chance", {name:cardName, desc:message}, continueAction);
+        return;
+    }
+
+    const choiceModal = document.getElementById("playerChoiceModal");
+    const choiceList = document.getElementById("playerChoiceList");
+    document.getElementById("playerChoiceType").innerText = functionName === "fun9" ? "选择要夺取土地的玩家" : "选择要破坏土地的玩家";
+    document.getElementById("playerChoiceDesc").innerText = "请选择一名拥有土地的玩家";
+    choiceList.innerHTML = targets.map((target, index)=>
+        `<button data-player-index="${index}" style="background:${target.color}">${target.name}<br><small>${getOwnedLands(target).length} 块土地</small></button>`
+    ).join("");
+    choiceModal.style.display = "flex";
+
+    const choosePlayer = target=>{
+        choiceModal.style.display = "none";
+        showLandChoice(player, functionName, continueAction, target);
+    };
+
+    choiceList.querySelectorAll("button").forEach((button, index)=>{
+        button.onclick = ()=>choosePlayer(targets[index]);
+    });
+    if(player.isAI) setTimeout(()=>choosePlayer(pickRandom(targets)), 900);
+}
+
+function showLandChoice(player, functionName, continueAction, selectedTarget=null){
+    const isGiftLand = functionName === "fun16";
+    const lands = isGiftLand ? getUnownedLands() : getOwnedLands(selectedTarget);
+    if(!lands.length){
+        const message = functionName === "fun9"
+            ? "没有其他玩家拥有土地，夺地失败"
+            : functionName === "fun10" ? "没有其他玩家拥有土地，破坏失败" : "没有无主土地，发地失败";
+        const cardName = functionName === "fun9" ? "夺土地" : functionName === "fun10" ? "破坏" : "发地";
+        showDrawResult(player, "chance", {name:cardName, desc:message}, continueAction);
+        return;
+    }
+
+    const choiceModal = document.getElementById("landChoiceModal");
+    const choiceList = document.getElementById("landChoiceList");
+    document.getElementById("landChoiceType").innerText = functionName === "fun9"
+        ? "选择要夺取的土地"
+        : functionName === "fun10" ? "选择要破坏的土地" : "选择要发放的土地";
+    document.getElementById("landChoiceDesc").innerText = isGiftLand
+        ? `${getPlayerWithFewestLands().name} 将获得这块免费土地`
+        : `请选择 ${selectedTarget.name} 的一块土地`;
+    choiceList.innerHTML = lands.map((land, index)=>
+        `<button data-land-index="${index}">${land.name}<br><small>${land.owner ? land.owner.name : "无主"}</small></button>`
+    ).join("");
+    choiceModal.style.display = "flex";
+
+    const chooseLand = land=>{
+        choiceModal.style.display = "none";
+        const message = functionName === "fun9"
+            ? fun9(player, land)
+            : functionName === "fun10" ? fun10(player, land) : fun16(player, land);
+        updateOwnerMark();
+        renderPlayerCards();
+        const cardName = functionName === "fun9" ? "夺土地" : functionName === "fun10" ? "破坏" : "发地";
+        showDrawResult(player, "chance", {name:cardName, desc:message}, continueAction);
+    };
+
+    choiceList.querySelectorAll("button").forEach((button, index)=>{
+        button.onclick = ()=>chooseLand(lands[index]);
+    });
+    if(player.isAI){
+        setTimeout(()=>chooseLand(pickRandom(lands)), 900);
+    }
+}
+
+function fun11(player){
+    const prisonIndex = boardConfig.rows - 1;
+    player.pos = prisonIndex;
+    player.skipTurns = 2;
+    updatePlayerMarker();
+    return `${player.name} 被陷害，移动到监狱并停留 2 回合`;
+}
+
+function fun12(player){
+    const parkIndex = boardConfig.rows - 1 + boardConfig.columns - 1;
+    player.pos = parkIndex;
+    player.skipTurns = 1;
+    updatePlayerMarker();
+    return `${player.name} 生病，移动到公园并停留 1 回合`;
+}
+
+function fun13(player){
+    player.pos = 0;
+    gainMoney(player, 2000);
+    updatePlayerMarker();
+    return `${player.name} 回到起点${hasGod(player, "穷神") ? "，穷神使奖励无效" : "并获得 2000 金钱"}`;
+}
+
+function fun14(player){
+    player.pos = (player.pos + 3) % boardConfig.totalCells;
+    updatePlayerMarker();
+    return `${player.name} 使用神行，向前移动 3 格，来到「${cellList[player.pos].name}」`;
+}
+
+function fun15(player){
+    const target = players.reduce((poorest, current)=>current.money < poorest.money ? current : poorest, players[0]);
+    gainMoney(target, 2000);
+    return `${target.name} 金钱最少，获得 2000 金钱`;
+}
+
+function getPlayerWithFewestLands(){
+    return players.reduce((fewestLands, current)=>
+        getOwnedLands(current).length < getOwnedLands(fewestLands).length ? current : fewestLands,
+        players[0]
+    );
+}
+
+function fun16(player, land=null){
+    const target = getPlayerWithFewestLands();
+    if(!land || land.owner) return "没有选择可发放的无主土地";
+    land.owner = target;
+    land.level = 1;
+    target.lands.push(land);
+    return `${target.name} 土地最少，获得免费土地「${land.name}」`;
+}
+
+function getDiceCount(player){
+    if(player && player.forcedDiceCount) return player.forcedDiceCount;
+    if(hasGod(player, "电母")) return 3;
+    if(hasGod(player, "雷公")) return 2;
+    return 1;
+}
+
+function renderDie(element, value, standing=false){
+    if(standing){
+        element.classList.remove("standing", "rolling");
+        element.innerHTML = "";
+        return;
+    }
+    const pipPositions = {
+        1:[[50,50]],
+        2:[[25,25],[75,75]],
+        3:[[25,25],[50,50],[75,75]],
+        4:[[25,25],[25,75],[75,25],[75,75]],
+        5:[[25,25],[25,75],[50,50],[75,25],[75,75]],
+        6:[[25,25],[50,25],[75,25],[25,75],[50,75],[75,75]]
+    };
+    element.classList.remove("standing");
+    element.innerHTML = pipPositions[value]
+        .map(([top, left])=>`<span class="pip" style="top:${top}%;left:${left}%"></span>`)
+        .join("");
+}
+
+function animateDiceRoll(diceElements, diceValues, onComplete){
+    const randomFaceTimer = setInterval(()=>{
+        diceValues.forEach((value, index)=>{
+            const randomValue = Math.floor(Math.random() * 6) + 1;
+            renderDie(diceElements[index], randomValue);
+        });
+    }, 180);// 每180毫秒随机显示一个骰子面
+
+    setTimeout(()=>{
+        clearInterval(randomFaceTimer);
+        diceValues.forEach((value, index)=>{
+            renderDie(diceElements[index], value);
+            diceElements[index].classList.remove("rolling");
+            void diceElements[index].offsetWidth;
+            diceElements[index].classList.add("rolling");
+        });
+    }, 1500);// 动画1.5秒后显示最终结果
+
+    setTimeout(()=>{
+        if(onComplete) onComplete();
+    }, 2150);// 等待最终骰面动画完成后再移动棋子
+}
+
+function renderDiceDisplay(player, isDebug=false){
+    const diceElements = [
+        document.getElementById("d1"),
+        document.getElementById("d2"),
+        document.getElementById("d3")
+    ];
+    const resultElement = document.getElementById("diceResult");
+    if(isDebug){
+        diceElements[0].style.display = "flex";
+        diceElements[1].style.display = "flex";
+        diceElements[2].style.display = "none";
+        resultElement.style.display = "none";
+        diceElements.forEach(dice=>dice.classList.remove("standing", "rolling"));
+        diceElements[0].innerText = "";
+        diceElements[1].innerText = "调试";
+        return;
+    }
+
+    const diceCount = diceVisualState === "standing" ? getDiceCount(player) : displayedDiceCount;
+    diceElements.forEach((dice, index)=>{
+        dice.style.display = index < diceCount ? "flex" : "none";
+        if(diceVisualState === "standing") renderDie(dice, 1, true);
+    });
+    resultElement.style.display = "flex";
+    if(diceVisualState === "standing") resultElement.innerText = "";
+}
+
+function removeLandFromOwner(land){
+    if(!land || !land.owner || !Array.isArray(land.owner.lands)) return;
+    const owner = land.owner;
+    const landIndex = owner.lands.indexOf(land);
+    if(landIndex >= 0) owner.lands.splice(landIndex, 1);
+}
+
+function resolveSpecialGodLanding(player, land){
+    if(!player || !land || !land.owner || land.owner === player) return "";
+    const previousOwner = land.owner;
+
+    if(hasGod(player, "土地")){
+        removeLandFromOwner(land);
+        land.owner = player;
+        land.level = land.level || 1;
+        player.lands.push(land);
+        return `${player.name} 触发土地，获得 ${land.name} 的所有权`;
+    }
+
+    if(hasGod(player, "破坏")){
+        removeLandFromOwner(land);
+        land.owner = null;
+        land.level = 0;
+        return `${player.name} 触发破坏，${previousOwner.name} 的 ${land.name} 变为无主土地`;
+    }
+
+    return "";
+}
+
+function finishMove(player, passedStart=false){
+    const cell = cellList[player.pos];
+    pendingBuyCell = cell;
+    tickGods(player);
+    //这个函数是先执行resolveLanding，再执行finishLanding，主要是为了先抽卡再调用finishLanding
+    //continueLanding是函数指针，指向resolveLanding，其中一个参数是函数finishLanding
+    //resolveLanding会在抽卡完成后调用finishLanding
+    const continueLanding = ()=>resolveLanding(player, ()=>finishLanding(player));
+    if(passedStart /*&& player.pos !== 0*/){
+        showCornerEvent("起点", "经过起点，获得2000", continueLanding);
+    } else {
+        continueLanding();
+    }
+}
+function finishLanding(player){
+    const cell = cellList[player.pos];
+    if(cell.type === "corner"){
+        handleCornerLanding(player, ()=>finishCornerLanding(player));
+        return;
+    }
+    if(cell.type === "land"){
+        if(!cell.owner && !player.isAI){
+            document.getElementById("buyTitle").innerText = cell.name;
+            document.getElementById("buyDesc").innerText = `价格：${cell.price}，购买后为 Lv1`;
+            document.getElementById("buyActionBtn").innerText = "购买";
+            document.getElementById("buyActionBtn").onclick = buyLand;
+            document.getElementById("buyActionBtn").disabled = player.money < cell.price;
+            document.getElementById("buyModal").style.display="flex";
+            renderPlayerCards();
+            return;
+        }
+        if(cell.owner === player){
+            const currentLevel = cell.level || 1;
+            if(currentLevel < 3){
+                document.getElementById("buyTitle").innerText = cell.name;
+                document.getElementById("buyDesc").innerText = `升级至 Lv${currentLevel + 1}，费用：${cell.price}`;
+                document.getElementById("buyActionBtn").innerText = "升级";
+                document.getElementById("buyActionBtn").onclick = upgradeLand;
+                document.getElementById("buyActionBtn").disabled = player.money < cell.price;
+                document.getElementById("buyModal").style.display="flex";
+                renderPlayerCards();
+                return;
+            }
+            updateOwnerMark();
+        } else if(cell.owner && cell.owner !== player){
+            const specialGodMessage = resolveSpecialGodLanding(player, cell);
+            if(specialGodMessage){
+                updateOwnerMark();
+                renderPlayerCards();
+                showCornerEvent("神明效果", specialGodMessage, ()=>finishLandingAfterRent(player));
+                return;
+            }
+            payRent(player, cell, ()=>finishLandingAfterRent(player));
+            return;
+        }
+    }
+    renderPlayerCards();
+    setTimeout(()=>{
+        nextTurn();
+    },1200);
+}
+
+function finishCornerLanding(player){
+    renderPlayerCards();
+    setTimeout(()=>nextTurn(),1200);
+}
+
+let pendingCornerContinue = null;
+function handleCornerLanding(player, continueAction){
+    const prisonIndex = boardConfig.rows - 1;
+    const landedCorner = cellList[player.pos];
+    const cornerName = landedCorner.name;
+    let eventText = landedCorner.desc || "无事发生";
+    //正常经过并停留监狱不触发效果，所以和0与，相当于禁止
+    if(player.pos === prisonIndex && 0){
+        player.skipTurns = Math.max(player.skipTurns, 1);
+        eventText = "进入监狱，停留1回合";
+    } else if(player.pos === prisonIndex + boardConfig.columns - 1 + boardConfig.rows - 1){
+        player.pos = prisonIndex;
+        player.skipTurns = 2;
+        updatePlayerMarker();
+        eventText = "被捕入狱，移至监狱并停留2回合";
+    } else if(player.pos === prisonIndex + boardConfig.columns - 1){
+        player.skipTurns = 1;
+        eventText = "进入公园，停留1回合";
+    } else if(player.pos === 0){
+        eventText = "经过起点，获得2000";
+    }
+    showCornerEvent(cornerName, eventText, continueAction);
+}
+
+function showCornerEvent(name, description, continueAction){
+    document.getElementById("cornerName").innerText = name;
+    document.getElementById("cornerDesc").innerText = description;
+    document.getElementById("cornerModal").style.display = "flex";
+    pendingCornerContinue = continueAction;
+    if(players[currentPlayerIdx] && players[currentPlayerIdx].isAI){
+        setTimeout(completeCorner, 900);
+    }
+}
+
+function completeCorner(){
+    const continueAction = pendingCornerContinue;
+    pendingCornerContinue = null;
+    document.getElementById("cornerModal").style.display = "none";
+    if(continueAction) continueAction();
+}
+// 购买地块
+function buyLand(){
+    const p = players[currentPlayerIdx];
+    if(!pendingBuyCell) return;
+    if(hasGod(p, "财神")){
+        pendingBuyCell.owner = p;
+        pendingBuyCell.level = 1;
+        p.lands.push(pendingBuyCell);
+        updateOwnerMark();
+        closeModal();
+        renderPlayerCards();
+        return;
+    }
+    if(p.money < pendingBuyCell.price) return;
+    p.money -= pendingBuyCell.price;
+    pendingBuyCell.owner = p;
+    pendingBuyCell.level = 1;
+    p.lands.push(pendingBuyCell);
+    updateOwnerMark();
+    closeModal();
+    renderPlayerCards();
+}
+
+function upgradeLand(){
+    const p = players[currentPlayerIdx];
+    const land = pendingBuyCell;
+    if(!land || land.owner !== p || (land.level || 1) >= 3 || p.money < land.price) return;
+    p.money -= land.price;
+    land.level = (land.level || 1) + 1;
+    updateOwnerMark();
+    closeModal();
+    renderPlayerCards();
+}
+
+function finishLandingAfterRent(player){
+    renderPlayerCards();
+    setTimeout(()=>nextTurn(),1200);
+}
+
+function ownsCompleteGroup(owner, group){
+    if(!owner || !group) return false;
+    return owner.lands.filter(land=>land.type === "land" && land.group === group).length >= 3;
+}
+
+function payRent(player, land, continueAction){
+    const level = Math.min(3, land.level || 1);
+    const hasCompleteGroup = ownsCompleteGroup(land.owner, land.group);
+    const groupMultiplier = hasCompleteGroup ? 2 : 1;
+    const payerGodMultiplier = getPayRentMultiplier(player);
+    const ownerGodMultiplier = getGodRentMultiplier(land.owner) * (land.owner.nextRentDouble ? 2 : 1);
+    const baseRent = Math.floor(land.price * level * groupMultiplier);
+    const isRentFree = !!player.nextRentFree;
+    const rent = isRentFree ? 0 : Math.floor(baseRent * payerGodMultiplier * ownerGodMultiplier);
+    const has财神 = hasGod(player, "财神");
+    const has穷神 = hasGod(land.owner, "穷神");
+    player.nextRentFree = false;
+    land.owner.nextRentDouble = false;
+    if(has财神){
+        document.getElementById("rentName").innerText = land.name;
+        document.getElementById("rentDesc").innerText = `${player.name} 触发财神护体，免除本次租金`;
+        document.getElementById("rentModal").style.display = "flex";
+        renderPlayerCards();
+        pendingRentContinue = continueAction;
+        return;
+    }
+    player.money -= rent;
+    if(!has穷神){
+        land.owner.money += rent;
+    }
+    document.getElementById("rentName").innerText = land.name;
+    const groupMessage = hasCompleteGroup ? "，同色地块已集齐，租金翻倍" : "";
+    const payerGodMessage = payerGodMultiplier === 2 ? "，付款方霉神：支付翻倍" : payerGodMultiplier === 0.5 ? "，付款方禄神：支付减半" : "";
+    const ownerGodMessage = ownerGodMultiplier >= 2 ? "，房主收租翻倍" : ownerGodMultiplier === 0.5 ? "，房主衰神：收租减半" : ownerGodMultiplier === 0 ? "，房主穷神：不收租金" : "";
+    const rentFreeMessage = isRentFree ? "，免租卡生效" : "";
+    document.getElementById("rentDesc").innerText = `${player.name} 支付 ${rent} 金钱给 ${land.owner.name}${groupMessage}${payerGodMessage}${ownerGodMessage}${rentFreeMessage}`;
+    //flex是为了让内容居中显示，避免内容过多时撑开弹窗,none就是取消显示
+    document.getElementById("rentModal").style.display = "flex";
+    renderPlayerCards();
+    pendingRentContinue = continueAction;
+}
+
+let pendingRentContinue = null;
+//payrent窗口有一个继续按钮，实际调用completeRent,点击后关闭窗口并继续游戏
+function completeRent(){
+    const continueAction = pendingRentContinue;
+    pendingRentContinue = null;
+    document.getElementById("rentModal").style.display = "none";
+    if(continueAction) continueAction();
+}
+
+function sellLand(playerIndex, landIndex){
+    const player = players[playerIndex];
+    if(!player || playerIndex !== currentPlayerIdx || !player.lands[landIndex]) return;
+    const land = player.lands[landIndex];
+    const salePrice = land.price * (land.level || 1);
+    player.money += salePrice;
+    land.owner = null;
+    land.level = 0;
+    player.lands.splice(landIndex, 1);
+    updateOwnerMark();
+    renderPlayerCards();
+}
+function closeModal(){
+    document.getElementById("buyModal").style.display="none";
+    pendingBuyCell=null;
+    setTimeout(()=>{
+        nextTurn();
+    },1200);
+}
+// 下一回合
+function nextTurn(){
+    currentPlayerIdx = (currentPlayerIdx+1) % players.length;
+    diceDisplayMode = "normal";
+    diceVisualState = "standing";
+    displayedDiceCount = getDiceCount(players[currentPlayerIdx]);
+    renderPlayerCards();
+    if(players[currentPlayerIdx].skipTurns > 0){
+        document.getElementById("rollBtn").disabled=true;
+        document.getElementById("debugRollBtn").disabled=true;
+        const player = players[currentPlayerIdx];
+        showCornerEvent("停留状态", `${player.name} 还需停留 ${player.skipTurns} 回合，本回合跳过`, ()=>{
+            tickGods(player);
+            player.skipTurns--;
+            nextTurn();
+        });
+        return;
+    }
+    document.getElementById("rollBtn").disabled=false;
+    document.getElementById("debugRollBtn").disabled=false;
+    // AI自动掷骰子
+    if(players[currentPlayerIdx].isAI){
+        setTimeout(()=>rollDice(),800);
+    }
+}
+function restartGame(){
+    location.reload();
+}
+</script>
+</body>
+</html>
