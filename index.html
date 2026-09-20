@@ -147,7 +147,7 @@ body{background:#efe8d5 url("./bj.png") center center / cover fixed no-repeat;pa
 }
 .cell-corner small{white-space:pre-line;}
 .cell.type-card{background:#d9a441;}
-.cell.type-chance{background:#5b91c9;}
+.cell.type-chance{background:#9b7fd4;}
 .cell.type-god{background:#5bc9be;}
 .cell.group-1{background:#f4b6b6;}
 .cell.group-2{background:#f6c58b;}
@@ -254,11 +254,15 @@ body{background:#efe8d5 url("./bj.png") center center / cover fixed no-repeat;pa
 .corner-box{min-width:280px;}
 .corner-box .draw-result{background:#e3d9c0;}
 .land-choice-box{min-width:320px;max-width:90%;}
-.land-choice-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:16px;}
-.land-choice-list button{margin:0;padding:10px 8px;background:#d9a441;}
+.land-choice-list,.player-choice-list{display:grid;gap:8px;margin-top:16px;max-height:min(70vh,620px);overflow-y:auto;}
+.land-choice-list[data-cols="1"],.player-choice-list[data-cols="1"]{grid-template-columns:repeat(1,minmax(0,1fr));}
+.land-choice-list[data-cols="2"],.player-choice-list[data-cols="2"]{grid-template-columns:repeat(2,minmax(0,1fr));}
+.land-choice-list[data-cols="3"],.player-choice-list[data-cols="3"]{grid-template-columns:repeat(3,minmax(0,1fr));}
+.land-choice-list[data-cols="4"],.player-choice-list[data-cols="4"]{grid-template-columns:repeat(4,minmax(0,1fr));}
+.land-choice-list[data-cols="5"],.player-choice-list[data-cols="5"]{grid-template-columns:repeat(5,minmax(0,1fr));}
+.land-choice-list button{margin:0;padding:10px 8px;background:#d9a441;min-width:0;overflow-wrap:anywhere;}
 .player-choice-box{min-width:300px;max-width:90%;}
-.player-choice-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:16px;}
-.player-choice-list button{margin:0;padding:10px 8px;background:#5b91c9;color:white;}
+.player-choice-list button{margin:0;padding:10px 8px;background:#5b91c9;color:white;min-width:0;overflow-wrap:anywhere;}
 @keyframes drawPulse{from{transform:scale(.96);opacity:.55;}to{transform:scale(1.04);opacity:1;}}
 </style>
 </head>
@@ -383,6 +387,16 @@ body{background:#efe8d5 url("./bj.png") center center / cover fixed no-repeat;pa
                 <div class="player-choice-list" id="playerChoiceList"></div>
             </div>
         </div>
+        <div class="modal" id="invalidChoiceModal">
+            <div class="modal-box draw-box">
+                <div class="draw-type">是否使用「无效」卡？</div>
+                <div class="draw-result">
+                    <div class="draw-desc"><span id="invalidChoiceOpponent"></span>，对方正要使用道具卡「<span id="invalidChoiceCardName"></span>」。是否使用「无效」卡使其无效？</div>
+                </div>
+                <button onclick="confirmInvalidChoice(true)">使用「无效」</button>
+                <button onclick="confirmInvalidChoice(false)">不使用</button>
+            </div>
+        </div>
     </div>
 </div>
 <audio id="bgMusic" src="./bgm.mp3" loop autoplay preload="auto"></audio>
@@ -479,7 +493,7 @@ const cardlist = [
     {name:"三色",func:"fun29()",price:0,desc:"在扔色子前使用，下次使用3个色子"},
     {name:"免租",func:"fun30()",price:0,desc:"在支付租金前使用，免除此次租金"},
     {name:"双倍",func:"fun31()",price:0,desc:"在收取租金前使用，使租金翻倍"},
-    {name:"无效",func:"fun32()",price:0,desc:"在使用道具卡时使用，使道具卡无效"},
+    {name:"无效",func:"fun32()",price:0,desc:"被动卡：当其他玩家使用道具时自动询问是否打出"},
     {name:"换地",func:"fun33()",price:0,desc:"在自己回合使用，指定交换两块土地"},
     {name:"拆地",func:"fun34()",price:0,desc:"在自己回合使用，拆除一块土地"},
     {name:"陷害",func:"fun35()",price:0,desc:"在自己回合使用，将一名玩家移至监狱并停留2回合"},
@@ -889,13 +903,75 @@ function drawRandom(list){
 function useCard(playerIndex, cardIndex){
     const player = players[playerIndex];
     if(!player || playerIndex !== currentPlayerIdx || !player.cards[cardIndex]) return;
-    const card = player.cards.splice(cardIndex, 1)[0];
+    const card = player.cards[cardIndex];
     const functionName = getFunctionName(card.func);
-    if(player.nullifyNextCard){
-        player.nullifyNextCard = false;
-        finishItemCard(player, "无效", `道具卡「${card.name}」已被无效`);
+    // 「无效」是被动卡，无法主动使用；它会在其他玩家使用道具时被询问是否打出
+    if(functionName === "fun32"){
+        showCornerEvent("无效", "「无效」是被动卡，无法主动使用。当其他玩家使用道具时会自动询问是否打出", ()=>renderPlayerCards());
         return;
     }
+    // 道具卡只能在自己的回合打出（已通过上面 playerIndex !== currentPlayerIdx 限制）
+    player.cards.splice(cardIndex, 1);
+    // 询问其他拥有「无效」卡的玩家是否要无效掉这张卡
+    askOpponentsForNullify(player, card, functionName);
+}
+
+function askOpponentsForNullify(originalPlayer, card, functionName){
+    const opponentsWithInvalid = getOtherPlayers(originalPlayer).filter(p =>
+        p.cards.some(c => getFunctionName(c.func) === "fun32")
+    );
+    if(!opponentsWithInvalid.length){
+        executeCard(originalPlayer, card, functionName);
+        return;
+    }
+    askNextInvalidOpponent(opponentsWithInvalid, 0, originalPlayer, card, functionName);
+}
+
+let pendingInvalidResolve = null;
+function askNextInvalidOpponent(opponents, index, originalPlayer, card, functionName){
+    if(index >= opponents.length){
+        executeCard(originalPlayer, card, functionName);
+        return;
+    }
+    const opponent = opponents[index];
+    const cardIdx = opponent.cards.findIndex(c => getFunctionName(c.func) === "fun32");
+    if(opponent.isAI){
+        setTimeout(()=>{
+            const willUse = Math.random() < 0.5;
+            if(willUse){
+                opponent.cards.splice(cardIdx, 1);
+                finishItemCard(opponent, "无效", `${opponent.name} 使用「无效」使「${card.name}」无效`);
+            } else {
+                askNextInvalidOpponent(opponents, index+1, originalPlayer, card, functionName);
+            }
+        }, 700);
+        return;
+    }
+    showInvalidChoiceModal(opponent, card, ()=>{
+        opponent.cards.splice(cardIdx, 1);
+        finishItemCard(opponent, "无效", `${opponent.name} 使用「无效」使「${card.name}」无效`);
+    }, ()=>{
+        askNextInvalidOpponent(opponents, index+1, originalPlayer, card, functionName);
+    });
+}
+
+function showInvalidChoiceModal(opponent, card, onYes, onNo){
+    pendingInvalidResolve = {onYes, onNo};
+    document.getElementById("invalidChoiceOpponent").innerText = opponent.name;
+    document.getElementById("invalidChoiceCardName").innerText = card.name;
+    document.getElementById("invalidChoiceModal").style.display = "flex";
+}
+
+function confirmInvalidChoice(yes){
+    document.getElementById("invalidChoiceModal").style.display = "none";
+    const resolve = pendingInvalidResolve;
+    pendingInvalidResolve = null;
+    if(!resolve) return;
+    if(yes) resolve.onYes();
+    else resolve.onNo();
+}
+
+function executeCard(player, card, functionName){
     if(functionName === "fun1"){
         fun1(player, ()=>renderPlayerCards());
     } else if(functionName === "fun2"){
@@ -914,6 +990,10 @@ function finishItemCard(player, name, message){
     showCornerEvent(name, message, ()=>renderPlayerCards());
 }
 
+function setChoiceColumns(list, count){
+    list.dataset.cols = count <= 8 ? 1 : count <= 16 ? 2 : count <= 24 ? 3 : count <= 32 ? 4 : 5;
+}
+
 function showItemPlayerChoice(player, title, candidates, callback){
     if(!candidates.length){
         finishItemCard(player, title, "没有符合条件的玩家");
@@ -926,6 +1006,7 @@ function showItemPlayerChoice(player, title, candidates, callback){
     list.innerHTML = candidates.map((target, index)=>
         `<button data-player-index="${index}" style="background:${target.color}">${target.name}</button>`
     ).join("");
+    setChoiceColumns(list, candidates.length);
     modal.style.display = "flex";
     const choose = target=>{
         modal.style.display = "none";
@@ -947,6 +1028,7 @@ function showItemLandChoice(player, title, lands, callback){
     list.innerHTML = lands.map((land, index)=>
         `<button data-land-index="${index}">${land.name}<br><small>${land.owner ? land.owner.name : "无主"}</small></button>`
     ).join("");
+    setChoiceColumns(list, lands.length);
     modal.style.display = "flex";
     const choose = land=>{
         modal.style.display = "none";
@@ -978,37 +1060,50 @@ function useNewItemCard(player, functionName){
         finishItemCard(player, "双倍", "下次收取租金时租金翻倍");
         return;
     }
-    if(functionName === "fun32"){
-        player.nullifyNextCard = true;
-        finishItemCard(player, "无效", "下一张使用的道具卡将失效");
-        return;
-    }
     if(functionName === "fun33"){
-        showItemLandChoice(player, "选择第一块要交换的土地", cellList.filter(cell=>cell.type === "land" && cell.owner), firstLand=>{
-            const remaining = cellList.filter(cell=>cell.type === "land" && cell.owner && cell !== firstLand);
-            showItemLandChoice(player, "选择第二块要交换的土地", remaining, secondLand=>{
-                const firstOwner = firstLand.owner;
-                const secondOwner = secondLand.owner;
-                firstOwner.lands.splice(firstOwner.lands.indexOf(firstLand), 1);
-                secondOwner.lands.splice(secondOwner.lands.indexOf(secondLand), 1);
-                firstLand.owner = secondOwner;
-                secondLand.owner = firstOwner;
-                firstOwner.lands.push(secondLand);
-                secondOwner.lands.push(firstLand);
-                updateOwnerMark();
-                finishItemCard(player, "换地", `已交换「${firstLand.name}」和「${secondLand.name}」的所有权`);
+        const ownersWithLands = players.filter(p=>p.lands.length > 0);
+        if(ownersWithLands.length < 2){
+            finishItemCard(player, "换地", "需要至少两名拥有土地的玩家才能换地");
+            return;
+        }
+        showItemPlayerChoice(player, "选择第一块地的拥有者", ownersWithLands, firstOwner=>{
+            showItemLandChoice(player, `选择 ${firstOwner.name} 要交换出的土地`, getOwnedLands(firstOwner), firstLand=>{
+                const remainingOwners = ownersWithLands.filter(target=>target !== firstOwner);
+                showItemPlayerChoice(player, "选择第二块地的拥有者", remainingOwners, secondOwner=>{
+                    showItemLandChoice(player, `选择 ${secondOwner.name} 要交换的土地`, getOwnedLands(secondOwner), secondLand=>{
+                        const firstOwnerRef = firstLand.owner;
+                        const secondOwnerRef = secondLand.owner;
+                        firstOwnerRef.lands.splice(firstOwnerRef.lands.indexOf(firstLand), 1);
+                        secondOwnerRef.lands.splice(secondOwnerRef.lands.indexOf(secondLand), 1);
+                        firstLand.owner = secondOwnerRef;
+                        secondLand.owner = firstOwnerRef;
+                        firstOwnerRef.lands.push(secondLand);
+                        secondOwnerRef.lands.push(firstLand);
+                        updateOwnerMark();
+                        renderPlayerCards();
+                        finishItemCard(player, "换地", `已交换「${firstLand.name}」和「${secondLand.name}」的所有权`);
+                    });
+                });
             });
         });
         return;
     }
     if(functionName === "fun34"){
-        showItemLandChoice(player, "选择要拆除的土地", cellList.filter(cell=>cell.type === "land" && cell.owner), land=>{
-            const owner = land.owner;
-            removeLandFromOwner(land);
-            land.owner = null;
-            land.level = 0;
-            updateOwnerMark();
-            finishItemCard(player, "拆地", `${owner.name} 的土地「${land.name}」已变为无主土地`);
+        const ownersWithLands = players.filter(p=>p.lands.length > 0);
+        if(!ownersWithLands.length){
+            finishItemCard(player, "拆地", "当前没有玩家拥有土地，无法拆除");
+            return;
+        }
+        showItemPlayerChoice(player, "选择要拆地的玩家", ownersWithLands, target=>{
+            showItemLandChoice(player, `选择 ${target.name} 要拆除的土地`, getOwnedLands(target), land=>{
+                const owner = land.owner;
+                removeLandFromOwner(land);
+                land.owner = null;
+                land.level = 0;
+                updateOwnerMark();
+                renderPlayerCards();
+                finishItemCard(player, "拆地", `${owner.name} 的土地「${land.name}」已变为无主土地`);
+            });
         });
         return;
     }
@@ -1172,7 +1267,7 @@ function gainMoney(player, amount){
 function loseMoney(player, amount){
     if(!player) return 0;
     if(hasGod(player, "财神")) return 0;
-    player.money = Math.max(0, player.money - amount);
+    player.money -= amount;
     return amount;
 }
 
@@ -1229,7 +1324,7 @@ function fun17(player){
     return amount ? `${player.name} 缴纳土地税 ${tax} 金钱` : `${player.name} 触发财神，免除土地税`;
 }
 function fun18(player){
-    const tax = Math.floor(player.money * 0.2);
+    const tax = Math.floor(Math.max(0, player.money) * 0.2);
     if(!tax) return `${player.name} 当前没有需要缴纳的财产税`;
     const amount = loseMoney(player, tax);
     return amount ? `${player.name} 缴纳财产税 ${tax} 金钱` : `${player.name} 触发财神，免除财产税`;
@@ -1322,6 +1417,7 @@ function showPlayerChoice(player, functionName, continueAction){
     choiceList.innerHTML = targets.map((target, index)=>
         `<button data-player-index="${index}" style="background:${target.color}">${target.name}<br><small>${getOwnedLands(target).length} 块土地</small></button>`
     ).join("");
+    setChoiceColumns(choiceList, targets.length);
     choiceModal.style.display = "flex";
 
     const choosePlayer = target=>{
@@ -1358,6 +1454,7 @@ function showLandChoice(player, functionName, continueAction, selectedTarget=nul
     choiceList.innerHTML = lands.map((land, index)=>
         `<button data-land-index="${index}">${land.name}<br><small>${land.owner ? land.owner.name : "无主"}</small></button>`
     ).join("");
+    setChoiceColumns(choiceList, lands.length);
     choiceModal.style.display = "flex";
 
     const chooseLand = land=>{
@@ -1552,6 +1649,9 @@ function finishMove(player, passedStart=false){
 }
 function finishLanding(player){
     const cell = cellList[player.pos];
+    // 同步实际落点：神行等天机事件会改变 player.pos，必须让 pendingBuyCell 指向当前落点，
+    // 否则购买时会误买移动前的格子（例如天机格子）
+    pendingBuyCell = cell;
     if(cell.type === "corner"){
         handleCornerLanding(player, ()=>finishCornerLanding(player));
         return;
@@ -1646,7 +1746,7 @@ function completeCorner(){
 // 购买地块
 function buyLand(){
     const p = players[currentPlayerIdx];
-    if(!pendingBuyCell) return;
+    if(!pendingBuyCell || pendingBuyCell.type !== "land") return;
     if(hasGod(p, "财神")){
         pendingBuyCell.owner = p;
         pendingBuyCell.level = 1;
@@ -1669,7 +1769,7 @@ function buyLand(){
 function upgradeLand(){
     const p = players[currentPlayerIdx];
     const land = pendingBuyCell;
-    if(!land || land.owner !== p || (land.level || 1) >= 3 || p.money < land.price) return;
+    if(!land || land.type !== "land" || land.owner !== p || (land.level || 1) >= 3 || p.money < land.price) return;
     p.money -= land.price;
     land.level = (land.level || 1) + 1;
     updateOwnerMark();
